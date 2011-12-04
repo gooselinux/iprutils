@@ -1,0 +1,463 @@
+diff -up iprutils/init.d/iprdump.initscripts iprutils/init.d/iprdump
+--- iprutils/init.d/iprdump.initscripts	2008-11-20 02:20:20.000000000 +0100
++++ iprutils/init.d/iprdump	2009-10-05 13:46:41.000000000 +0200
+@@ -20,84 +20,98 @@
+ # Short-Description: Start the ipr dump daemon
+ # Description:       Start the ipr dump daemon
+ ### END INIT INFO
++#
++# chkconfig: 2345 20 80
++# description: Runs the IBM Power RAID adapter dump daemon
++# processname: iprdump
++# pidfile: /var/run/iprdump.pid
++#
++
++# Source function library
++. /etc/init.d/functions
++
++RETVAL=0
++
++prog=iprdump
++exec=/sbin/iprdump
++lockfile=/var/lock/subsys/iprdump
++pidfile=/var/run/iprdump.pid
+ 
+-IPRDUMP=/sbin/iprdump
+-test -x $IPRDUMP || exit 5
+-. /lib/lsb/init-functions
+ 
+ start() {
+-    echo -n "Starting ipr dump daemon"
++    [ -x $exec ] || exit 5
++    echo -n "Starting $prog: "
+     if [ ! -d /sys/class/scsi_generic ] ; then
+         modprobe sg
+     fi
+-    start_daemon $IPRDUMP --daemon
+-
++    
++    daemon $exec --daemon
+     RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg " "
+-    else
+-	log_failure_msg " "
+-    fi
++    echo
++    [ $RETVAL = 0 ] && touch $lockfile && /sbin/pidof $exec > $pidfile
+     return $RETVAL
+ }
+ 
+ stop() {
+-    echo -n "Shutting down ipr dump daemon"
+-    killproc $IPRDUMP
+-
++    echo -n "Stopping $prog: "
++    killproc $exec -TERM
+     RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg " "
+-    else
+-	log_failure_msg " "
+-    fi
++    echo
++    [ $RETVAL = 0 ] && rm -f $lockfile $pidfile
+     return $RETVAL
+ }
+ 
+ restart() {
+-    $0 stop
+-    $0 start
+-    return $RETVAL
++    stop
++    start
+ }
+ 
+ reload() {
+-    echo -n "Reload ipr dump daemon"
+-    $0 stop  &&  $0 start
+-    return $RETVAL
++    restart
+ }
+ 
+-status() {
+-    echo -n "Checking for iprdump daemon: "
++force_reload() {
++    restart
++}
+ 
+-    pidofproc $IPRDUMP >& /dev/null
++rh_status() {
++    # run checks to determine if the service is running or use generic status
++    status $prog
++}
+ 
+-    RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg "running"
+-    else
+-	log_failure_msg "unused"
+-    fi
+-    return $RETVAL
++rh_status_q() {
++    rh_status >/dev/null 2>&1
+ }
+ 
+ case "$1" in
+     start)
+-	start
+-	;;
++        rh_status_q && exit 0
++        $1
++        ;;
+     stop)
+-	stop
+-	;;
++        rh_status_q || exit 0
++        $1
++        ;;
+     restart)
+-	restart
+-	;;
++        $1
++        ;;
+     reload)
+-	reload
+-	;;
++        rh_status_q || exit 7
++        $1
++        ;;
++    force-reload)
++        force_reload
++        ;;
+     status)
+-	status
+-	;;
++        rh_status
++        ;;
++    condrestart|try-restart)
++        rh_status_q || exit 0
++        restart
++        ;;
+     *)
+-	echo "Usage: $0 {start|stop|status|restart|reload}"
+-	exit 1
+-	;;
++        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
++        exit 2
+ esac
++exit $?
++
+diff -up iprutils/init.d/iprinit.initscripts iprutils/init.d/iprinit
+--- iprutils/init.d/iprinit.initscripts	2007-08-21 20:56:03.000000000 +0200
++++ iprutils/init.d/iprinit	2009-10-05 14:59:18.000000000 +0200
+@@ -20,84 +20,97 @@
+ # Short-Description: Start the ipr init daemon
+ # Description:       Start the ipr initialization daemon
+ ### END INIT INFO
+-
+-IPRINIT=/sbin/iprinit
+-test -x $IPRINIT || exit 5
+-. /lib/lsb/init-functions
++#
++# chkconfig: 2345 20 80
++# description: Runs the IBM Power RAID adapter initialization daemon
++# processname: iprinit
++# pidfile: /var/run/iprinit.pid
++#
++
++# Source function library
++. /etc/init.d/functions
++
++RETVAL=0
++
++prog=iprinit
++exec=/sbin/iprinit
++lockfile=/var/lock/subsys/$prog
++pidfile=/var/run/iprinit.pid
+ 
+ start() {
+-    echo -n "Starting ipr initialization daemon"
++    [ -x $exec ] || exit 5
++    echo -n "Starting $prog: "
+     if [ ! -d /sys/class/scsi_generic ] ; then
+         modprobe sg
+     fi
+-    start_daemon $IPRINIT --daemon
++    daemon $exec --daemon
+ 
+     RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg " "
+-    else
+-	log_failure_msg " "
+-    fi
++    echo
++    [ $RETVAL = 0 ] && touch $lockfile && /sbin/pidof $exec > $pidfile
+     return $RETVAL
+ }
+ 
+ stop() {
+-    echo -n "Shutting down ipr initialization daemon"
+-    killproc $IPRINIT
+-    
++    echo -n "Stopping iprinit: "
++    killproc $exec -TERM
+     RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg " "
+-    else
+-	log_failure_msg " "
+-    fi
++    [ $RETVAL = 0 ] && rm -f $lockfile $pidfile
+     return $RETVAL
+ }
+ 
+ restart() {
+-    $0 stop
+-    $0 start
+-    return $RETVAL
++    stop
++    start
+ }
+ 
+ reload() {
+-    echo -n "Reload ipr initialization daemon"
+-    $0 stop  &&  $0 start
+-    return $RETVAL
++    restart
+ }
+ 
+-status() {
+-    echo -n "Checking for ipr initialization daemon: "
++force_reload() {
++    restart
++}
+ 
+-    pidofproc $IPRINIT >& /dev/null
++rh_status() {
++    # run checks to determine if the service is running or use generic status
++    status $prog
++}
+ 
+-    RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg "running"
+-    else
+-	log_failure_msg "unused"
+-    fi
+-    return $RETVAL
++rh_status_q() {
++    rh_status >/dev/null 2>&1
+ }
+ 
++
+ case "$1" in
+     start)
+-	start
+-	;;
++        rh_status_q && exit 0
++        $1
++        ;;
+     stop)
+-	stop
+-	;;
++        rh_status_q || exit 0
++        $1
++        ;;
+     restart)
+-	restart
+-	;;
++        $1
++        ;;
+     reload)
+-	reload
+-	;;
++        rh_status_q || exit 7
++        $1
++        ;;
++    force-reload)
++        force_reload
++        ;;
+     status)
+-	status
+-	;;
++        rh_status
++        ;;
++    condrestart|try-restart)
++        rh_status_q || exit 0
++        restart
++        ;;
+     *)
+-	echo "Usage: $0 {start|stop|status|restart|reload}"
+-	exit 1
+-	;;
++        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
++        exit 2
+ esac
++exit $?
++
+diff -up iprutils/init.d/iprupdate.initscripts iprutils/init.d/iprupdate
+--- iprutils/init.d/iprupdate.initscripts	2008-11-20 02:20:20.000000000 +0100
++++ iprutils/init.d/iprupdate	2009-10-05 15:04:50.000000000 +0200
+@@ -20,86 +20,98 @@
+ # Short-Description: Start the iprupdate utility
+ # Description:       Start the iprupdate utility
+ ### END INIT INFO
+-
+-IPRUPDATE=/sbin/iprupdate
+-test -x $IPRUPDATE || exit 5
+-. /lib/lsb/init-functions
++#
++# chkconfig: 2345 20 80
++# description: Runs the IBM Power RAID adapter update daemon
++# processname: iprupdate
++# pidfile: /var/run/iprupdate.pid
++#
++
++# Source function library
++. /etc/init.d/functions
++
++RETVAL=0
++
++prog=iprupdate
++exec=/sbin/iprupdate
++lockfile=/var/lock/subsys/iprupdate
++pidfile=/var/run/iprupdate.pid
+ 
+ start() {
+-	echo "Checking ipr microcode levels"
+-	if [ ! -d /sys/class/scsi_generic ] ; then
+-	    modprobe sg
+-	fi
+-	start_daemon $IPRUPDATE --daemon
+-
+-	RETVAL=$?
+-	if [ $RETVAL -eq 0 ]; then
+-	    echo -n "Completed ipr microcode updates"
+-	    log_success_msg " "
+-	else
+-	    echo -n "Completed ipr microcode updates"
+-	    log_failure_msg " "
+-	fi
+-        return $RETVAL
++    [ -x $exec ] || exit 5
++    echo -n "Starting iprupdate: "
++
++    if [ ! -d /sys/class/scsi_generic ]; then
++        modprobe sg
++    fi
++
++    daemon $exec --daemon
++    RETVAL=$?
++    echo
++    [ $RETVAL = 0 ] && touch $lockfile && /sbin/pidof $exec > $pidfile
++    return $RETVAL
+ }
+ 
+ stop() {
+-    echo -n "Shutting down ipr update daemon"
+-    killproc $IPRUPDATE
+-    
++    echo -n "Stopping iprupdate: "
++    killproc $exec -TERM
+     RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg " "
+-    else
+-	log_failure_msg " "
+-    fi
++    [ $RETVAL = 0 ] && rm -f $lockfile $pidfile
+     return $RETVAL
+ }
+ 
+ restart() {
+-    $0 stop
+-    $0 start
+-    return $RETVAL
++    stop
++    start
+ }
+ 
+ reload() {
+-    $0 stop
+-    $0 start
+-    return $RETVAL
++    restart
+ }
+ 
+-status() {
+-    echo -n "Checking for ipr update daemon: "
++force_reload() {
++    restart
++}
+ 
+-    pidofproc $IPRUPDATE >& /dev/null
++rh_status() {
++    # run checks to determine if the service is running or use generic status
++    status $prog
++}
+ 
+-    RETVAL=$?
+-    if [ $RETVAL -eq 0 ]; then
+-	log_success_msg "running"
+-    else
+-	log_failure_msg "unused"
+-    fi
+-    return $RETVAL
++rh_status_q() {
++    rh_status >/dev/null 2>&1
+ }
+ 
++
+ case "$1" in
+-	start)
+-		start
+-	;;
+-	stop)
+-		stop
+-	;;
+-	restart)
+-		restart
+-	;;
+-	reload)
+-		reload
+-	;;
+-	status)
+-		status
+-	;;
+-	*)
+-		echo "Usage: $0 {start|stop|status|restart|reload}"
+-		exit 1
+-	;;
++    start)
++        rh_status_q && exit 0
++        $1
++        ;;
++    stop)
++        rh_status_q || exit 0
++        $1
++        ;;
++    restart)
++        $1
++        ;;
++    reload)
++        rh_status_q || exit 7
++        $1
++        ;;
++    force-reload)
++        force_reload
++        ;;
++    status)
++        rh_status
++        ;;
++    condrestart|try-restart)
++        rh_status_q || exit 0
++        restart
++        ;;
++    *)
++        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
++        exit 2
+ esac
++exit $?
++
